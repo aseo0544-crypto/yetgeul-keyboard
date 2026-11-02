@@ -26,6 +26,7 @@ jobs:
           javac -encoding UTF-8 -d /tmp/et app/src/main/java/com/yetgeul/keyboard/engine/*.java engine-test/*.java
           java -cp /tmp/et EngineTest
           java -cp /tmp/et SessionTest
+          java -cp /tmp/et DataCheck data
 
       - name: Build APK
         run: |
