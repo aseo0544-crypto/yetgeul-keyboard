@@ -624,7 +624,7 @@ namespace Yetgeul
             List<Syl> s = Jamo.Parse(word, true);
             if (o.Grammar) s = Endings(s, question);
             s = Dictionary(s, word);
-            if (o.Grammar) { AfterStem(s); Nominal(s, word); SubjectGa(s, word); Particles(s); }
+            if (o.Grammar) { AfterStem(s); Copula(s); Nominal(s, word); SubjectGa(s, word); Particles(s); }
             for (int i = 0; i < s.Count; i++)
             {
                 Syl a = s[i];
@@ -679,16 +679,32 @@ namespace Yetgeul
             {
                 if (w.EndsWith("이에요") && n > 3) return ReplaceTail(s, 3, "이니잇가", null);
                 if (n > 2 && (w.EndsWith("이야") || w.EndsWith("이냐") || w.EndsWith("이니"))) return ReplaceTail(s, 2, wh ? "고" : "가", null);
-                string[,] qf = { {"겠습니까", "리잇가"}, {"겠어요", "리잇가"}, {"겠니", "리여"}, {"겠냐", "리여"}, {"겠어", "리여"} };
-                for (int i = 0; i < qf.GetLength(0); i++)
-                    if (w.EndsWith(qf[i, 0]) && w.Length > qf[i, 0].Length) return ReplaceTail(s, qf[i, 0].Length, qf[i, 1], null);
                 string ny = wh ? "{ㄴㆍ}뇨" : "{ㄴㆍ}녀";
                 if (n >= 3 && (w.EndsWith("느냐") || w.EndsWith("느니"))) return ReplaceTail(s, 2, ny, null);
+                if (n >= 1 && w.EndsWith("해") && !s[n - 1].Locked) { s[n - 1].V = Jamo.V_A; return ReplaceTail(s, 0, ny, null); }
+                if (n >= 2)
+                {
+                    Syl p = s[n - 2], z = s[n - 1];
+                    if (p.IsHangul && !p.Locked && z.IsHangul && !z.Locked && z.T == 0 && !w.EndsWith("겠어"))
+                    {
+                        if (w.EndsWith("야") && p.T == 0) return ReplaceTail(s, 1, wh ? "고" : "가", null);
+                        if (z.L == Jamo.L_NULL && (z.V == Jamo.V_EO || z.V == Jamo.V_A)) return ReplaceTail(s, 1, ny, null);
+                    }
+                }
                 if (n >= 2 && (w.EndsWith("니") || w.EndsWith("냐")) && !w.EndsWith("습니"))
                 {
                     Syl pq = s[n - 2];
                     if (pq.IsHangul && !pq.Locked && pq.T != Jamo.T_B) return ReplaceTail(s, 1, ny, null);
                 }
+            }
+            string[,] get = q ? new string[,] { {"겠습니까", "리잇가"}, {"겠어요", "리잇가"}, {"겠니", "리여"}, {"겠냐", "리여"}, {"겠어", "리여"} }
+                : new string[,] { {"겠습니다", "리이다"}, {"겠어요", "리이다"}, {"겠다", "리라"}, {"겠어", "리라"}, {"겠음", "리로다"}, {"겠슴", "리로다"} };
+            for (int i = 0; i < get.GetLength(0); i++)
+            {
+                if (!w.EndsWith(get[i, 0]) || w.Length <= get[i, 0].Length) continue;
+                Syl b = s[n - get[i, 0].Length - 1];
+                bool cons = b.IsHangul && b.T != 0 && b.T != Jamo.T_R;
+                return ReplaceTail(s, get[i, 0].Length, (cons ? "으" : "") + get[i, 1], null);
             }
             string[,] fix = q ? new string[,] {
                 {"입니다", "이니잇가"}, {"입니까", "이니잇가"}, {"습니다", "{ㄴㆍ}니잇가"}, {"습니까", "{ㄴㆍ}니잇가"},
@@ -698,7 +714,6 @@ namespace Yetgeul
                 {"으십시오", "으{ㅅㅛ}{ㅅㅕ}"}, {"십시오", "{ㅅㅛ}{ㅅㅕ}"},
                 {"으세요", "으{ㅅㅛ}{ㅅㅕ}"}, {"세요", "{ㅅㅛ}{ㅅㅕ}"},
                 {"으므로", "을{ㅆㆎ}"}, {"으니까", "으니"}, {"는다", "{ㄴㆍ}다"},
-                {"겠습니다", "리이다"}, {"겠어요", "리이다"}, {"겠다", "리라"}, {"겠어", "리라"},
                 {"시어서", "{ㅅㅑ}"}, {"시어", "{ㅅㅑ}"} };
             for (int i = 0; i < fix.GetLength(0); i++)
                 if (w.EndsWith(fix[i, 0]) && w.Length > fix[i, 0].Length) return ReplaceTail(s, fix[i, 0].Length, fix[i, 1], null);
@@ -738,10 +753,26 @@ namespace Yetgeul
                     || p.V == Jamo.V_WA || p.V == Jamo.V_WEO || p.V == Jamo.V_AE || p.V == Jamo.V_E))
                     return ReplaceTail(s, 1, polite, null);
             }
+            if (n >= 2)
+            {
+                Syl p = s[n - 2], z = s[n - 1];
+                if (p.IsHangul && !p.Locked && z.IsHangul && !z.Locked)
+                {
+                    if (w.EndsWith("네") && !BANMAL_EXCEPT.Contains(w)) return ReplaceTail(s, 1, "도다", null);
+                    if (w.EndsWith("자") && !BANMAL_EXCEPT.Contains(w) && !q) return ReplaceTail(s, 1, "{ㅈㅕ}", null);
+                    if ((w.EndsWith("게") || w.EndsWith("께")) && p.T == Jamo.T_R)
+                    {
+                        p.T = 0;
+                        if (p.L == Jamo.L_H && p.V == Jamo.V_A) { p.V = Jamo.V_O; p.Locked = true; }
+                        return ReplaceTail(s, 1, "리라", null);
+                    }
+                    if (n >= 3 && w.EndsWith("이다") && s[n - 3].IsHangul && s[n - 3].T != 0) return ReplaceTail(s, 1, "라", null);
+                }
+            }
             if (n >= 2 && w.EndsWith("다"))
             {
                 Syl p = s[n - 2];
-                if (p.IsHangul && !p.Locked && p.T == Jamo.T_N && p.L != Jamo.L_NULL) return ReplaceTail(s, 1, "{ㄴㆍ}다", p);
+                if (p.IsHangul && !p.Locked && p.T == Jamo.T_N) return ReplaceTail(s, 1, "{ㄴㆍ}다", p);
             }
             return s;
         }
@@ -828,12 +859,30 @@ namespace Yetgeul
                 }
                 if (b.L == Jamo.L_G && b.V == Jamo.V_O && b.T == 0 && (a.Group == 0 || a.Group != b.Group))
                 {
-                    bool end = i + 1 == s.Count && !b.Locked;
+                    bool end = i + 1 == s.Count && (!b.Locked || a.T == 0);
                     if (i + 1 < s.Count) { Syl c = s[i + 1]; end = c.IsHangul && c.L == Jamo.L_J && c.V == Jamo.V_YEO && c.T == 0; }
                     if (!end) continue;
                     if (a.T == Jamo.T_R) { b.L = Jamo.L_NULL; a.NoLink = true; }
+                    else if (a.T == 0 && EndsInI(a.V) && a.Locked) b.L = Jamo.L_NULL;
                     else if (i >= 2 && !a.Locked && a.L == Jamo.L_NULL && a.V == Jamo.V_I && a.T == 0) b.L = Jamo.L_NULL;
                 }
+            }
+        }
+
+        static readonly HashSet<string> BANMAL_EXCEPT = new HashSet<string>(new[] {
+            "그네", "우리네", "너네", "저네", "아저씨네", "의자", "과자", "모자", "사자", "부자", "감자", "상자", "기자",
+            "왕자", "숫자", "액자", "판자", "제자", "환자", "남자", "여자", "주자", "타자", "효자", "가자",
+            "피자", "원자", "적자", "투자", "혼자", "이자", "단자", "탁자", "자자", "글자", "문자", "한자", "선자" });
+
+        static void Copula(List<Syl> s)
+        {
+            int n = s.Count;
+            if (n < 2) return;
+            Syl p = s[n - 2], z = s[n - 1];
+            if (p.IsHangul && p.Locked && p.T != 0 && z.IsHangul && !z.Locked && z.L == Jamo.L_D && z.V == Jamo.V_A && z.T == 0)
+            {
+                z.L = Jamo.L_R;
+                s.Insert(n - 1, new Syl(Jamo.L_NULL, Jamo.V_I, 0));
             }
         }
 
@@ -891,6 +940,10 @@ namespace Yetgeul
                 z.T = Jamo.T_R;
                 s.Insert(k + 1, new Syl(Jamo.L_NULL, Jamo.IsYang(z.V) ? Jamo.V_O : Jamo.V_U, Jamo.T_M));
                 return;
+            }
+            if ((z.L == Jamo.L_G || z.L == Jamo.L_K) && z.V == Jamo.V_I && z.T == Jamo.T_M && p != null && !p.Locked && p.T != 0)
+            {
+                z.V = yang ? Jamo.V_YO : Jamo.V_YU; return;
             }
             if (z.V != Jamo.V_EU || z.T != Jamo.T_M) return;
             bool eum = z.L == Jamo.L_NULL || z.L == Jamo.L_S;
