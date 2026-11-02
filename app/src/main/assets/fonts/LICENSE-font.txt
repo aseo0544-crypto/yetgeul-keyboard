@@ -1,0 +1,4 @@
+나눔명조 옛한글 (NanumMyeongjo YetHangul)
+Copyright (c) NAVER Corporation
+SIL Open Font License 1.1 — https://openfontlicense.org
+Subset for this app (Hangul, jamo, ASCII). Source: npm @kfonts/nanum-myeongjo-yet-hangul
