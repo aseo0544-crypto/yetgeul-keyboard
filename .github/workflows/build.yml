@@ -48,3 +48,27 @@ jobs:
         run: |
           gh release delete latest --yes --cleanup-tag || true
           gh release create latest yetgeul-keyboard.apk --title "옛글 키보드 최신 빌드" --notes "main 브랜치 최신 커밋으로 자동 빌드한 APK입니다. 휴대폰에서 받아 설치하세요." --prerelease
+
+  windows:
+    needs: build
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Generate PC script
+        run: python windows/gen.py
+
+      - name: Self-test in Windows PowerShell 5.1
+        shell: powershell
+        run: |
+          [Console]::OutputEncoding = [Text.Encoding]::UTF8
+          powershell -NoProfile -ExecutionPolicy Bypass -File "windows\옛글키보드.ps1" -SelfTest
+
+      - name: Attach to "latest" release (main only)
+        if: github.ref == 'refs/heads/main'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cp "windows/옛글키보드.ps1" yetgeul-keyboard-pc.ps1
+          gh release upload latest yetgeul-keyboard-pc.ps1 --clobber
