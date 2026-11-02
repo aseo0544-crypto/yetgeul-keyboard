@@ -62,7 +62,7 @@ jobs:
         shell: powershell
         run: |
           [Console]::OutputEncoding = [Text.Encoding]::UTF8
-          powershell -NoProfile -ExecutionPolicy Bypass -File "windows\옛글키보드.ps1" -SelfTest
+          powershell -NoProfile -ExecutionPolicy Bypass -File "windows\yetgeul-keyboard-pc.ps1" -SelfTest
 
       - name: Attach to "latest" release (main only)
         if: github.ref == 'refs/heads/main'
