@@ -202,12 +202,16 @@ namespace Yetgeul
 
         static readonly Regex WORD = new Regex("[가-힣ᄀ-ᇿꥠ-꥿ힰ-퟿]+");
         static readonly Regex P_DIFFER = new Regex("([가-힣]+?)(과|와)(\\s+)(다르|달라|달리|다른|다릅|다를|달랐)");
-        static readonly Regex P_NEG = new Regex("([가-힣]+?)지(\\s+)(않|아니)");
+        static readonly Regex P_NEG = new Regex("([가-힣]+?)지(\\s+)(않|아니|못)");
+        static readonly Regex P_JUL = new Regex("([가-힣]+)(\\s+)줄(을)?(?=\\s+(알|몰|모르))");
+        static readonly Regex WH = new Regex("(^|[^가-힣])(어디|무엇|뭐|누구|누가|언제|어떤|어떻게|어찌|왜|몇|어느|무슨)");
+        bool wh;
         static readonly Regex P_WANT = new Regex("([가-힣]+?)고(\\s+)싶(습니다|어요|으면|었다|다|어|은)");
         static readonly Regex P_WILL = new Regex("([가-힣]*)([가-힣])\\s+(것입니다|것이에요|거예요|것이다|거야|거다)");
 
         public string Convert(string text)
         {
+            wh = WH.IsMatch(text);
             if (o.Grammar) text = PhraseRules(text);
             List<string> parts = new List<string>();
             List<bool> isWord = new List<bool>();
@@ -240,6 +244,14 @@ namespace Yetgeul
         {
             t = P_DIFFER.Replace(t, "$1에$3$4");
             t = P_NEG.Replace(t, "$1디$2$3");
+            t = P_JUL.Replace(t, delegate(Match m)
+            {
+                string g1 = m.Groups[1].Value;
+                char c = g1[g1.Length - 1];
+                int fin = c >= 0xAC00 && c <= 0xD7A3 ? (c - 0xAC00) % 28 : 0;
+                if (fin != 4 && fin != 8) return m.Value;
+                return g1 + m.Groups[2].Value + (m.Groups[3].Success ? "\u1103\u119E\u1105\u119E\u11AF" : "\u1103\u119E\u11AF");
+            });
             t = P_WANT.Replace(t, delegate(Match m)
             {
                 string e = m.Groups[3].Value, r;
@@ -271,7 +283,7 @@ namespace Yetgeul
             List<Syl> s = Jamo.Parse(word, true);
             if (o.Grammar) s = Endings(s, question);
             s = Dictionary(s, word);
-            if (o.Grammar) { SubjectGa(s, word); Particles(s); }
+            if (o.Grammar) { AfterStem(s); Nominal(s, word); SubjectGa(s, word); Particles(s); }
             for (int i = 0; i < s.Count; i++)
             {
                 Syl a = s[i];
@@ -325,21 +337,28 @@ namespace Yetgeul
             if (q)
             {
                 if (w.EndsWith("이에요") && n > 3) return ReplaceTail(s, 3, "이니잇가", null);
-                if (w.EndsWith("이야") && n > 2) return ReplaceTail(s, 2, "이녀", null);
+                if (n > 2 && (w.EndsWith("이야") || w.EndsWith("이냐") || w.EndsWith("이니"))) return ReplaceTail(s, 2, wh ? "고" : "가", null);
+                string[,] qf = { {"겠습니까", "리잇가"}, {"겠어요", "리잇가"}, {"겠니", "리여"}, {"겠냐", "리여"}, {"겠어", "리여"} };
+                for (int i = 0; i < qf.GetLength(0); i++)
+                    if (w.EndsWith(qf[i, 0]) && w.Length > qf[i, 0].Length) return ReplaceTail(s, qf[i, 0].Length, qf[i, 1], null);
+                string ny = wh ? "{ㄴㆍ}뇨" : "{ㄴㆍ}녀";
+                if (n >= 3 && (w.EndsWith("느냐") || w.EndsWith("느니"))) return ReplaceTail(s, 2, ny, null);
                 if (n >= 2 && (w.EndsWith("니") || w.EndsWith("냐")) && !w.EndsWith("습니"))
                 {
                     Syl pq = s[n - 2];
-                    if (pq.IsHangul && !pq.Locked && pq.T != Jamo.T_B) return ReplaceTail(s, 1, "{ㄴㆍ}녀", null);
+                    if (pq.IsHangul && !pq.Locked && pq.T != Jamo.T_B) return ReplaceTail(s, 1, ny, null);
                 }
             }
             string[,] fix = q ? new string[,] {
                 {"입니다", "이니잇가"}, {"입니까", "이니잇가"}, {"습니다", "{ㄴㆍ}니잇가"}, {"습니까", "{ㄴㆍ}니잇가"},
-                {"으세요", "으시니잇가"}, {"세요", "시니잇가"}, {"는다", "{ㄴㆍ}니"} } : new string[,] {
+                {"으세요", "으시니잇가"}, {"세요", "시니잇가"}, {"는다", "{ㄴㆍ}니"}, {"시어", "{ㅅㅑ}"} } : new string[,] {
                 {"입니다", "이{ㆁㅣ}다"}, {"입니까", "이{ㆁㅣ}잇가"},
                 {"습니다", "{ㄴㆍ}이다"}, {"습니까", "{ㄴㆍ}니잇가"},
                 {"으십시오", "으{ㅅㅛ}{ㅅㅕ}"}, {"십시오", "{ㅅㅛ}{ㅅㅕ}"},
                 {"으세요", "으{ㅅㅛ}{ㅅㅕ}"}, {"세요", "{ㅅㅛ}{ㅅㅕ}"},
-                {"으므로", "을{ㅆㆎ}"}, {"으니까", "으니"}, {"는다", "{ㄴㆍ}다"} };
+                {"으므로", "을{ㅆㆎ}"}, {"으니까", "으니"}, {"는다", "{ㄴㆍ}다"},
+                {"겠습니다", "리이다"}, {"겠어요", "리이다"}, {"겠다", "리라"}, {"겠어", "리라"},
+                {"시어서", "{ㅅㅑ}"}, {"시어", "{ㅅㅑ}"} };
             for (int i = 0; i < fix.GetLength(0); i++)
                 if (w.EndsWith(fix[i, 0]) && w.Length > fix[i, 0].Length) return ReplaceTail(s, fix[i, 0].Length, fix[i, 1], null);
             if (n >= 3)
@@ -357,7 +376,7 @@ namespace Yetgeul
                 if (p.IsHangul && p.T == 0) { p.T = Jamo.T_R; return ReplaceTail(s, 2, "{ㅆㆎ}", null); }
             }
             if (n >= 3 && w.EndsWith("니까")) return ReplaceTail(s, 2, "니", null);
-            if (n >= 2 && w.EndsWith("까") && s[n - 2].IsHangul && s[n - 2].T == Jamo.T_R) return ReplaceTail(s, 1, "가", null);
+            if (n >= 2 && w.EndsWith("까") && s[n - 2].IsHangul && s[n - 2].T == Jamo.T_R) return ReplaceTail(s, 1, wh ? "고" : "가", null);
             if (n >= 3 && w.EndsWith("이에요")) return ReplaceTail(s, 3, q ? "이니잇가" : "이{ㆁㅣ}다", null);
             if (n >= 3 && w.EndsWith("예요"))
             {
@@ -446,6 +465,104 @@ namespace Yetgeul
                 i += hit.M.Length;
             }
             return outp;
+        }
+
+        static Syl Lk(Syl x) { x.Locked = true; return x; }
+
+        void AfterStem(List<Syl> s)
+        {
+            for (int i = 1; i < s.Count; i++)
+            {
+                Syl a = s[i - 1], b = s[i];
+                if (!a.IsHangul || !b.IsHangul) continue;
+                if (a.Locked && a.T == 0 && !b.Locked && b.L == Jamo.L_NULL && b.V == Jamo.V_EU)
+                {
+                    if (b.T == 0 && i + 1 < s.Count) { s.RemoveAt(i); i--; continue; }
+                    if (b.T == Jamo.T_M && i + 1 == s.Count) { a.T = Jamo.T_M; s.RemoveAt(i); i--; continue; }
+                }
+                if (b.Locked && b.L == Jamo.L_NULL && b.V == Jamo.V_ARAEA_I && b.T == 0 && i + 1 < s.Count)
+                {
+                    Syl c = s[i + 1];
+                    if (c.IsHangul && c.L == Jamo.L_G && c.V == Jamo.V_EU && c.Group == b.Group && !Jamo.IsYang(a.V)) b.V = Jamo.V_UI;
+                }
+                if (b.L == Jamo.L_G && b.V == Jamo.V_O && b.T == 0 && (a.Group == 0 || a.Group != b.Group))
+                {
+                    bool end = i + 1 == s.Count && !b.Locked;
+                    if (i + 1 < s.Count) { Syl c = s[i + 1]; end = c.IsHangul && c.L == Jamo.L_J && c.V == Jamo.V_YEO && c.T == 0; }
+                    if (!end) continue;
+                    if (a.T == Jamo.T_R) { b.L = Jamo.L_NULL; a.NoLink = true; }
+                    else if (i >= 2 && !a.Locked && a.L == Jamo.L_NULL && a.V == Jamo.V_I && a.T == 0) b.L = Jamo.L_NULL;
+                }
+            }
+        }
+
+        static readonly HashSet<string> NOMINAL_EXCEPT = new HashSet<string>(new[] {
+            "게임", "모임", "책임", "담임", "주임", "위임", "일임", "처임", "기름", "그믐", "고름", "거름", "소름",
+            "녹음", "발음", "복음", "잡음", "탁음", "격음", "독음", "축음", "직음", "얼음" });
+
+        void Nominal(List<Syl> s, string word)
+        {
+            int n = s.Count;
+            if (n == 0) return;
+            int k = n - 1;
+            Syl z = s[k];
+            if (!z.IsHangul) return;
+            if (n >= 2 && !z.Locked && ((z.L == Jamo.L_NULL && z.T == 0 && (z.V == Jamo.V_E || z.V == Jamo.V_I || z.V == Jamo.V_UI))
+                || (z.L == Jamo.L_NULL && z.V == Jamo.V_EU && (z.T == Jamo.T_R || z.T == Jamo.T_N))
+                || (z.L == Jamo.L_G && z.V == Jamo.V_WA && z.T == 0) || (z.L == Jamo.L_D && z.V == Jamo.V_O && z.T == 0)))
+            {
+                k = n - 2; z = s[k];
+            }
+            string core = word.Substring(0, Math.Max(0, word.Length - (n - 1 - k)));
+            if (NOMINAL_EXCEPT.Contains(core) || !z.IsHangul || z.T == 0) return;
+            Syl p = k > 0 && s[k - 1].IsHangul ? s[k - 1] : null;
+            bool yang = p != null && Jamo.IsYang(p.V);
+            if (z.L == Jamo.L_H && (z.V == Jamo.V_A || (z.Locked && z.V == Jamo.V_ARAEA)) && z.T == Jamo.T_M && k >= 1)
+            {
+                z.T = 0; z.V = Jamo.V_ARAEA; z.Locked = true;
+                s.Insert(k + 1, Lk(new Syl(Jamo.L_NULL, Jamo.V_YO, Jamo.T_M)));
+                return;
+            }
+            if (z.Locked) return;
+            if (z.L == Jamo.L_D && z.V == Jamo.V_OE && z.T == Jamo.T_M)
+            {
+                z.V = Jamo.V_ARAEA; z.T = 0; z.Locked = true;
+                s.Insert(k + 1, Lk(new Syl(Jamo.L_NULL, Jamo.V_OE, 0)));
+                s.Insert(k + 2, Lk(new Syl(Jamo.L_NULL, Jamo.V_YO, Jamo.T_M)));
+                return;
+            }
+            if (k == 1 && p != null && !p.Locked && p.L == Jamo.L_NULL && p.V == Jamo.V_A && p.T == 0
+                && z.L == Jamo.L_N && z.V == Jamo.V_I && z.T == Jamo.T_M)
+            {
+                z.T = 0;
+                s.Insert(k + 1, Lk(new Syl(Jamo.L_R, Jamo.V_O, Jamo.T_M)));
+                return;
+            }
+            if (z.L == Jamo.L_NULL && z.V == Jamo.V_I && z.T == Jamo.T_M && p != null)
+            {
+                if (p.T == 0 && Jamo.AddI(p.V) != 0) { p.V = Jamo.AddI(p.V); z.L = Jamo.L_R; z.V = Jamo.V_O; return; }
+                z.T = 0;
+                s.Insert(k + 1, Lk(new Syl(Jamo.L_R, Jamo.V_O, Jamo.T_M)));
+                return;
+            }
+            if (z.T == Jamo.T_RM)
+            {
+                z.T = Jamo.T_R;
+                s.Insert(k + 1, new Syl(Jamo.L_NULL, Jamo.IsYang(z.V) ? Jamo.V_O : Jamo.V_U, Jamo.T_M));
+                return;
+            }
+            if (z.V != Jamo.V_EU || z.T != Jamo.T_M) return;
+            bool eum = z.L == Jamo.L_NULL || z.L == Jamo.L_S;
+            if (eum && p != null && p.T != 0)
+            {
+                if (p.T == Jamo.T_SS || (p.Locked && p.T == Jamo.T_S)) { p.T = 0; z.L = Jamo.L_S; z.V = Jamo.V_YO; return; }
+                if (p.T == Jamo.T_BS) { p.T = Jamo.T_B; z.L = Jamo.L_S; z.V = Jamo.V_U; return; }
+                if (z.L == Jamo.L_NULL && p.T != Jamo.T_NG) z.V = yang ? Jamo.V_O : Jamo.V_U;
+                return;
+            }
+            if (eum) return;
+            if (core == "모름" && p != null) { p.T = Jamo.T_R; z.V = Jamo.V_O; return; }
+            z.V = yang ? Jamo.V_O : Jamo.V_U;
         }
 
         void SubjectGa(List<Syl> s, string word)
