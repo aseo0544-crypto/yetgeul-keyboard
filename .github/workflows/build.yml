@@ -70,5 +70,4 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          cp "windows/옛글키보드.ps1" yetgeul-keyboard-pc.ps1
-          gh release upload latest yetgeul-keyboard-pc.ps1 --clobber
+          gh release upload latest windows/yetgeul-keyboard-pc.ps1 --clobber

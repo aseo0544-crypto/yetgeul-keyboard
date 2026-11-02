@@ -17,5 +17,5 @@ open(os.path.join(here, "Engine.cs"), "w", encoding="utf-8").write(cs)
 app = open(os.path.join(here, "app.ps1.tpl"), encoding="utf-8").read()
 app = app.replace("@@ENGINE@@", cs.replace("'@", "' @"))
 # PowerShell 5.1은 BOM 없는 UTF-8을 ANSI로 읽으므로 BOM을 붙임
-open(os.path.join(here, "옛글키보드.ps1"), "w", encoding="utf-8-sig", newline="\r\n").write(app)
+open(os.path.join(here, "yetgeul-keyboard-pc.ps1"), "w", encoding="utf-8-sig", newline="\r\n").write(app)
 print("entries:", len(entries))
