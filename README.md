@@ -21,6 +21,13 @@
 
 규칙과 사전으로 바꾸는 방식이라 모든 문장이 문법적으로 완벽하지는 않습니다.
 
+## PC (Windows)
+1. [yetgeul-keyboard-pc.ps1](../../releases/download/latest/yetgeul-keyboard-pc.ps1) 받기
+2. 오른쪽 클릭 → **PowerShell에서 실행** (설치·관리자 권한 필요 없음)
+3. 아무 곳에서나 치고 **Ctrl+Alt+Y** → 그 줄(또는 고른 글자)이 옛 표기로 바뀜. 다시 누르면 원래대로
+- **Ctrl+Alt+W** 변환 창, **Ctrl+Alt+O** 켜기/끄기, 알림 영역 아이콘에서 규칙·자동 실행 설정
+- C# 엔진(`windows/Engine.cs`)은 `windows/gen.py`가 Java 사전에서 자동 생성
+
 ## 빌드
 - GitHub: `main`에 올리면 Actions가 APK를 만들어 `latest` 릴리스에 올림
 - Windows: `.\build.ps1` (JDK 17 + Android SDK), 엔진만 시험: `.\test-engine.ps1`
