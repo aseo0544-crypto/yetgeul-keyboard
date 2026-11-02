@@ -20,8 +20,6 @@ jobs:
           distribution: temurin
           java-version: '17'
 
-      - uses: android-actions/setup-android@v3
-
       - name: Engine tests (plain Java)
         run: |
           mkdir -p /tmp/et
@@ -31,6 +29,7 @@ jobs:
 
       - name: Build APK
         run: |
+          echo "sdk.dir=$ANDROID_HOME" > local.properties
           chmod +x gradlew
           ./gradlew --no-daemon assembleRelease
 
