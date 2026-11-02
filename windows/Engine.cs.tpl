@@ -555,7 +555,16 @@ namespace Yetgeul
             bool eum = z.L == Jamo.L_NULL || z.L == Jamo.L_S;
             if (eum && p != null && p.T != 0)
             {
-                if (p.T == Jamo.T_SS || (p.Locked && p.T == Jamo.T_S)) { p.T = 0; z.L = Jamo.L_S; z.V = Jamo.V_YO; return; }
+                if (p.T == Jamo.T_SS || (p.Locked && p.T == Jamo.T_S))
+                {
+                    p.T = 0; z.L = Jamo.L_S; z.V = Jamo.V_YO;
+                    if (!p.Locked && p.L == Jamo.L_H && p.V == Jamo.V_AE)
+                    {
+                        p.V = Jamo.V_ARAEA; p.Locked = true;
+                        s.Insert(k, Lk(new Syl(Jamo.L_NULL, Jamo.V_YA, 0)));
+                    }
+                    return;
+                }
                 if (p.T == Jamo.T_BS) { p.T = Jamo.T_B; z.L = Jamo.L_S; z.V = Jamo.V_U; return; }
                 if (z.L == Jamo.L_NULL && p.T != Jamo.T_NG) z.V = yang ? Jamo.V_O : Jamo.V_U;
                 return;

@@ -404,7 +404,12 @@ public final class Converter {
         boolean eum = z.l == Jamo.L_NULL || z.l == Jamo.L_S;   // 음, 슴
         if (eum && p != null && p.t != 0) {
             if (p.t == Jamo.T_SS || (p.locked && p.t == Jamo.T_S)) {          // 있음 → 이숌, 했음 → ᄒᆞ야숌
-                p.t = 0; z.l = Jamo.L_S; z.v = Jamo.V_YO; return;
+                p.t = 0; z.l = Jamo.L_S; z.v = Jamo.V_YO;
+                if (!p.locked && p.l == Jamo.L_H && p.v == Jamo.V_AE) {        // 망했음 → 마ᇰᄒᆞ야숌
+                    p.v = Jamo.V_ARAEA; p.locked = true;
+                    s.add(k, new Syl(Jamo.L_NULL, Jamo.V_YA, 0).lock());
+                }
+                return;
             }
             if (p.t == Jamo.T_BS) { p.t = Jamo.T_B; z.l = Jamo.L_S; z.v = Jamo.V_U; return; }   // 없음 → 업숨
             if (z.l == Jamo.L_NULL && p.t != Jamo.T_NG) z.v = yang ? Jamo.V_O : Jamo.V_U;   // 먹음 → 머굼
