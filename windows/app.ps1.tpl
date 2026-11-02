@@ -84,9 +84,10 @@ $ruleNames = [ordered]@{
     PalJong = '8종성  (꽃 → 곳)'
     Yeorin = '여린히읗 ㆆ  (할 바 → ᄒᆞᇙ 바)'
     Grammar = '옛 문법·말투  (합니다 → ᄒᆞᄂᆞ이다)'
+    Compat = '카톡 호환: 받침 붙는 옛 글자는 현대 글자로'
 }
 $state = @{ Enabled = $true }
-foreach ($k in $ruleNames.Keys) { $state[$k] = $true }
+foreach ($k in $ruleNames.Keys) { $state[$k] = ($k -ne 'Compat') }
 if (Test-Path $settingsFile) {
     try {
         $saved = Get-Content $settingsFile -Raw -Encoding UTF8 | ConvertFrom-Json

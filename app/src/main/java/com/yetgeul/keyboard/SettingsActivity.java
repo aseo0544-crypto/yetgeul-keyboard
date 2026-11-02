@@ -93,7 +93,7 @@ public class SettingsActivity extends Activity {
         root.addView(header("3. 바꿀 규칙"));
         SharedPreferences p = Prefs.get(this);
         for (String[] r : Prefs.RULES) {
-            root.addView(toggle(r[1], r[2], r[0], true));
+            root.addView(toggle(r[1], r[2], r[0], !"compat".equals(r[0])));
         }
         root.addView(header("4. 자판"));
         root.addView(toggle("길게 누르면 옛 자모", "ㅅ → ㅿ ㅺ ㅼ ㅽ, ㅇ → ㆁ ㆆ, ㅏ → ㆍ", "longPress", true));

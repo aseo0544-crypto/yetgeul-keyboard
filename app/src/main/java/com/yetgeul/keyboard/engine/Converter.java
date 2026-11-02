@@ -22,6 +22,7 @@ public final class Converter {
         public boolean yeoneol = true;    // 이어적기 (사람이→사ᄅᆞ미)
         public boolean palJong = true;    // 8종성 (꽃→곳, 있다→잇다)
         public boolean grammar = true;    // 옛 문법·말투 (합니다→ᄒᆞᄂᆞ이다, 과 달라→에 달아)
+        public boolean compat = false;    // 카톡 호환: 받침이 붙는 옛 글자는 현대 글자로 (받침 깨짐 방지)
     }
 
     private final Options o;
@@ -50,7 +51,8 @@ public final class Converter {
         StringBuilder sb = new StringBuilder();
         for (int i = 0; i < parts.size(); i++) {
             if (!isWord.get(i)) { sb.append(parts.get(i)); continue; }
-            List<Syl> syls = convertWord(parts.get(i));
+            boolean question = i + 1 < parts.size() && parts.get(i + 1).trim().startsWith("?");
+            List<Syl> syls = convertWord(parts.get(i), question);
             // ᄒᆞᇙ: 'ᄒᆞᆯ'로 끝나고 띄어 쓴 다음 낱말이 이어지면
             if (o.yeorin && o.araea && !syls.isEmpty() && i + 2 < parts.size()
                     && " ".equals(parts.get(i + 1)) && isWord.get(i + 2)) {
@@ -110,12 +112,14 @@ public final class Converter {
     private static final Set<String> GA_EXCEPT = new HashSet<>(Arrays.asList(
             "휴가", "요가", "대가", "고가", "시가", "주가", "사가", "가가", "노가", "부가", "지가", "도가", "자가", "어디가"));
 
-    public List<Syl> convertWord(String word) {
+    public List<Syl> convertWord(String word) { return convertWord(word, false); }
+
+    public List<Syl> convertWord(String word, boolean question) {
         List<Syl> s = Jamo.parse(word, true);
         int n0 = s.size();
-        if (o.grammar) s = endings(s);
+        if (o.grammar) s = endings(s, question);
         s = dictionary(s, word, n0);
-        if (o.grammar) subjectGa(s, word);
+        if (o.grammar) { subjectGa(s, word); particles(s); }
         for (int i = 0; i < s.size(); i++) {
             Syl a = s.get(i);
             if (!a.isHangul() || a.locked) continue;
@@ -163,23 +167,38 @@ public final class Converter {
     }
 
     /** 문장 끝 말투: 합니다→ᄒᆞᄂᆞ이다, 하세요→ᄒᆞ쇼셔, 한다→ᄒᆞᄂᆞ다 등. */
-    private List<Syl> endings(List<Syl> s) {
+    private List<Syl> endings(List<Syl> s, boolean q) {
         int n = s.size();
         String w = modern(s);
-        String[][] fixed = {
+        String polite = q ? "{ㄴㆍ}니잇가" : "{ㄴㆍ}이다";
+        // 물음: 입니까/습니까 + 해요체 물음
+        if (q) {
+            if (w.endsWith("이에요") && n > 3) return replaceTail(s, 3, "이니잇가", null);
+            if (w.endsWith("이야") && n > 2) return replaceTail(s, 2, "이녀", null);
+            if (n >= 2 && (w.endsWith("니") || w.endsWith("냐")) && !w.endsWith("습니") && !w.endsWith("ㅂ니")) {
+                Syl p = s.get(n - 2);
+                if (p.isHangul() && !p.locked && p.t != Jamo.T_B) return replaceTail(s, 1, "{ㄴㆍ}녀", null);
+            }
+        }
+        String[][] fixed = new String[][]{
                 {"입니다", "이{ㆁㅣ}다"}, {"입니까", "이{ㆁㅣ}잇가"},
                 {"습니다", "{ㄴㆍ}이다"}, {"습니까", "{ㄴㆍ}니잇가"},
                 {"으십시오", "으{ㅅㅛ}{ㅅㅕ}"}, {"십시오", "{ㅅㅛ}{ㅅㅕ}"},
                 {"으세요", "으{ㅅㅛ}{ㅅㅕ}"}, {"세요", "{ㅅㅛ}{ㅅㅕ}"},
                 {"으므로", "을{ㅆㆎ}"}, {"으니까", "으니"}, {"는다", "{ㄴㆍ}다"},
         };
+        if (q) {
+            fixed = new String[][]{
+                    {"입니다", "이니잇가"}, {"입니까", "이니잇가"}, {"습니다", "{ㄴㆍ}니잇가"}, {"습니까", "{ㄴㆍ}니잇가"},
+                    {"으세요", "으시니잇가"}, {"세요", "시니잇가"}, {"는다", "{ㄴㆍ}니"}};
+        }
         for (String[] f : fixed) {
             if (w.endsWith(f[0]) && w.length() > f[0].length()) return replaceTail(s, f[0].length(), f[1], null);
         }
         if (n >= 3) {
             Syl p = s.get(n - 3);
             if (p.isHangul() && !p.locked && p.t == Jamo.T_B) {
-                if (w.endsWith("니다")) return replaceTail(s, 2, "{ㄴㆍ}이다", p);
+                if (w.endsWith("니다")) return replaceTail(s, 2, polite, p);
                 if (w.endsWith("니까")) return replaceTail(s, 2, "{ㄴㆍ}니잇가", p);
             }
         }
@@ -188,6 +207,26 @@ public final class Converter {
             if (n >= 3 && p.isHangul() && p.t == 0) { p.t = Jamo.T_R; return replaceTail(s, 2, "{ㅆㆎ}", null); }
         }
         if (n >= 3 && w.endsWith("니까")) return replaceTail(s, 2, "니", null);
+        // 할까 → ᄒᆞᆯ가
+        if (n >= 2 && w.endsWith("까") && s.get(n - 2).isHangul() && s.get(n - 2).t == Jamo.T_R) return replaceTail(s, 1, "가", null);
+        // 해요체: 이에요/예요, 해요, 먹어요, 가요, 했어요
+        if (n >= 3 && w.endsWith("이에요")) return replaceTail(s, 3, q ? "이니잇가" : "이{ㆁㅣ}다", null);
+        if (n >= 2 && w.endsWith("예요")) {
+            Syl p = s.get(n - 3 >= 0 ? n - 3 : 0);
+            if (n >= 3 && p.isHangul() && p.t == 0 && Jamo.addI(p.v) != 0) { p.v = Jamo.addI(p.v); return replaceTail(s, 2, q ? "니잇가" : "{ㆁㅣ}다", null); }
+        }
+        if (n >= 2 && w.endsWith("해요")) { s.get(n - 2).v = Jamo.V_A; return replaceTail(s, 1, polite, null); }
+        if (n >= 3 && (w.endsWith("어요") || w.endsWith("아요"))) {
+            Syl p = s.get(n - 3);
+            boolean past = p.isHangul() && p.t == Jamo.T_SS;
+            return replaceTail(s, 2, past ? (q ? "니잇가" : "니이다") : polite, null);
+        }
+        if (n >= 2 && w.endsWith("요")) {
+            Syl p = s.get(n - 2);
+            if (p.isHangul() && !p.locked && p.t == 0 && (p.v == Jamo.V_A || p.v == Jamo.V_EO || p.v == Jamo.V_YEO
+                    || p.v == Jamo.V_WA || p.v == Jamo.V_WEO || p.v == Jamo.V_AE || p.v == Jamo.V_E))
+                return replaceTail(s, 1, polite, null);
+        }
         // 한다/간다 → ᄒᆞᄂᆞ다/가ᄂᆞ다 (받침 ㄴ + 다)
         if (n >= 2 && w.endsWith("다")) {
             Syl p = s.get(n - 2);
@@ -219,10 +258,22 @@ public final class Converter {
         int i = 0;
         while (i < s.size()) {
             Dict.Entry hit = null;
+            int carryT = 0;
             for (Dict.Entry e : Dict.ENTRIES) {
-                if (!m.startsWith(e.modern, i)) continue;
+                carryT = 0;
+                if (!m.startsWith(e.modern, i)) {
+                    // VERB: 마지막 음절은 받침만 달라도 맞춤 (말한 → 말하 + ㄴ)
+                    if (e.kind != Dict.Kind.VERB || i != 0) continue;
+                    int k = e.modern.length();
+                    if (k > m.length() || !m.startsWith(e.modern.substring(0, k - 1), 0)) continue;
+                    char want = e.modern.charAt(k - 1), have = m.charAt(k - 1);
+                    if (want < 0xAC00 || have < 0xAC00 || have > 0xD7A3 || (want - 0xAC00) % 28 != 0
+                            || (have - 0xAC00) / 28 != (want - 0xAC00) / 28) continue;
+                    carryT = 0x11A7 + (have - 0xAC00) % 28;
+                }
                 if (e.kind == Dict.Kind.ANY && e.modern.length() < 2) continue;
                 if (e.kind != Dict.Kind.ANY && i != 0) continue;
+                if (carryT != 0 && e.kind != Dict.Kind.VERB) continue;
                 if (e.kind == Dict.Kind.NOUN) {
                     String rest = word.substring(Math.min(word.length(), e.modern.length()));
                     if (!Arrays.asList(Dict.PARTICLES).contains(rest)) continue;
@@ -232,6 +283,10 @@ public final class Converter {
             }
             if (hit == null) { out.add(s.get(i)); i++; continue; }
             List<Syl> rep = Jamo.parseSpec(hit.spec);
+            if (carryT != 0) {
+                Syl z = rep.get(rep.size() - 1);
+                if (z.t == 0) z.t = carryT;
+            }
             int g = ++groupSeq;
             for (Syl x : rep) { x.group = g; out.add(x.lock()); }
             i += hit.modern.length();
@@ -245,11 +300,69 @@ public final class Converter {
         if (n < 2 || GA_EXCEPT.contains(word)) return;
         Syl z = s.get(n - 1), p = s.get(n - 2);
         if (!z.isHangul() || z.locked || z.l != Jamo.L_G || z.v != Jamo.V_A || z.t != 0) return;
-        if (!p.isHangul() || p.t != 0) return;
+        if (!p.isHangul()) return;
+        if (p.t != 0) { z.l = Jamo.L_NULL; z.v = Jamo.V_I; return; }  // ㅎ 끝소리 명사: 코가 → 고히
         int v = Jamo.addI(p.v);
         if (v == 0) return;
         p.v = v;
         s.remove(n - 1);
+    }
+
+    /** 조사 고르기: 에/애/예, 에서→애셔, 받침 ㄹ 뒤 과→와, 께→ᄭᅴ. */
+    private void particles(List<Syl> s) {
+        int n = s.size();
+        if (n < 2) return;
+        Syl z = s.get(n - 1);
+        if (!z.isHangul() || z.locked) return;
+        // 에서 → 에셔 (앞에서 에를 고름)
+        int ei = -1;
+        if (z.l == Jamo.L_NULL && z.v == Jamo.V_E && z.t == 0) ei = n - 1;
+        else if (n >= 3 && z.l == Jamo.L_S && z.v == Jamo.V_EO && z.t == 0) {
+            Syl y = s.get(n - 2);
+            if (y.isHangul() && !y.locked && y.l == Jamo.L_NULL && y.v == Jamo.V_E && y.t == 0) { ei = n - 2; z.v = Jamo.V_YEO; }
+        }
+        if (ei > 0) {
+            Syl e = s.get(ei), p = s.get(ei - 1);
+            if (p.isHangul()) {
+                if (p.t == 0 && endsInI(p.v)) e.v = Jamo.V_YE;
+                else if (Jamo.isYang(p.v)) e.v = Jamo.V_AE;
+            }
+            return;
+        }
+        if (n >= 3 && z.l == Jamo.L_R && z.v == Jamo.V_O && z.t == 0) {   // 뫼으로 → 뫼로
+            Syl y = s.get(n - 2), x = s.get(n - 3);
+            if (!y.locked && y.l == Jamo.L_NULL && y.v == Jamo.V_EU && y.t == 0 && x.isHangul() && x.locked && x.t == 0) {
+                s.remove(n - 2); return;
+            }
+        }
+        Syl p = s.get(n - 2);
+        if (!p.isHangul()) return;
+        // 사전으로 앞말의 받침이 바뀌었으면 조사 짝을 맞춤 (친구를 → 벋을, 여자와 → 겨집과)
+        if (p.locked && n >= 2) {
+            boolean cons = p.t != 0;
+            if (cons) {
+                if (z.l == Jamo.L_R && z.v == Jamo.V_EU && z.t == Jamo.T_R) z.l = Jamo.L_NULL;           // 를→을
+                else if (z.l == Jamo.L_N && z.v == Jamo.V_EU && z.t == Jamo.T_N) z.l = Jamo.L_NULL;      // 는→은
+                else if (z.l == Jamo.L_NULL && z.v == Jamo.V_WA && z.t == 0 && p.t != Jamo.T_R) z.l = Jamo.L_G; // 와→과
+                else if (z.l == Jamo.L_R && z.v == Jamo.V_O && z.t == 0 && p.t != Jamo.T_R) {           // 로→으로
+                    s.add(n - 1, new Syl(Jamo.L_NULL, Jamo.V_EU, 0)); n++; z = s.get(n - 1);
+                }
+            } else {
+                if (z.l == Jamo.L_NULL && z.v == Jamo.V_EU && z.t == Jamo.T_R) z.l = Jamo.L_R;           // 을→를
+                else if (z.l == Jamo.L_NULL && z.v == Jamo.V_EU && z.t == Jamo.T_N) z.l = Jamo.L_N;      // 은→는
+                else if (z.l == Jamo.L_G && z.v == Jamo.V_WA && z.t == 0) z.l = Jamo.L_NULL;             // 과→와
+                else if (z.l == Jamo.L_NULL && z.v == Jamo.V_I && z.t == 0 && Jamo.addI(p.v) != 0) {     // 이→ㅣ
+                    p.v = Jamo.addI(p.v); s.remove(n - 1); return;
+                }
+            }
+        }
+        if (z.l == Jamo.L_G && z.v == Jamo.V_WA && z.t == 0 && (p.t == Jamo.T_R || p.t == Jamo.T_R_YEORIN)) { z.l = Jamo.L_NULL; p.noLink = true; return; }
+        if (z.l == Jamo.L_GG && z.v == Jamo.V_E && z.t == 0) { z.l = Jamo.L_SG; z.v = Jamo.V_UI; z.locked = true; }
+    }
+
+    private static boolean endsInI(int v) {
+        return v == Jamo.V_I || v == Jamo.V_AE || v == Jamo.V_E || v == Jamo.V_OE || v == Jamo.V_WI || v == Jamo.V_UI
+                || v == Jamo.V_ARAEA_I || v == Jamo.V_YAE || v == Jamo.V_YE || v == Jamo.V_WAE || v == Jamo.V_WE;
     }
 
     /** 이어적기: 받침 + ㅇ으로 시작하는 음절 → 받침을 다음 음절 초성으로. */
@@ -323,6 +436,23 @@ public final class Converter {
                 case Jamo.L_SJ: case 0x1127: l = Jamo.L_JJ; break;
                 default:
             }
+        }
+        if (o.compat && t != 0 && Jamo.compose(l, v, t).length() > 1) {
+            // 받침이 붙은 옛 글자는 현대 글자로 (카톡 등 받침 조합이 깨지는 앱용)
+            switch (l) {
+                case Jamo.L_SG: case 0x1122: l = Jamo.L_GG; break;
+                case Jamo.L_SD: case 0x1120: case 0x1123: l = Jamo.L_DD; break;
+                case Jamo.L_SB: l = Jamo.L_BB; break;
+                case Jamo.L_BS: l = Jamo.L_SS; break;
+                case Jamo.L_SJ: case 0x1127: l = Jamo.L_JJ; break;
+                case Jamo.L_PANSIOS: case Jamo.L_YESIEUNG: case Jamo.L_YEORIN: l = Jamo.L_NULL; break;
+                case Jamo.L_BEOP: l = Jamo.L_B; break;
+                default:
+            }
+            if (v == Jamo.V_ARAEA) v = Jamo.V_A; else if (v == Jamo.V_ARAEA_I) v = Jamo.V_AE;
+            else if (v == Jamo.V_YO_I) v = Jamo.V_YO; else if (v == Jamo.V_YU_I) v = Jamo.V_YU;
+            if (t == Jamo.T_YESIEUNG) t = Jamo.T_NG; else if (t == Jamo.T_PANSIOS) t = Jamo.T_S;
+            else if (t == Jamo.T_R_YEORIN) t = Jamo.T_R;
         }
         return Jamo.compose(l, v, t);
     }

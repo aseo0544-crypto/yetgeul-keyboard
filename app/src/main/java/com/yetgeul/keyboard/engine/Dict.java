@@ -9,9 +9,10 @@ import java.util.List;
  * ANY  : 낱말 어디서나 (두 음절 이상)
  * NOUN : 낱말 맨 앞, 뒤에는 조사만 올 때 (한 음절 명사)
  * STEM : 낱말 맨 앞, 뒤에 무엇이 와도 (용언 어간)
+ * VERB : STEM과 같되 마지막 음절의 받침이 달라도 맞춤 (말한 → 니ᄅᆞᆫ, 받침은 옮겨 붙임)
  */
 public final class Dict {
-    public enum Kind { ANY, NOUN, STEM }
+    public enum Kind { ANY, NOUN, STEM, VERB }
 
     public static final class Entry {
         public final String modern; public final String spec; public final Kind kind;
@@ -23,6 +24,7 @@ public final class Dict {
     private static void any(String m, String s) { ENTRIES.add(new Entry(m, s, Kind.ANY)); }
     private static void noun(String m, String s) { ENTRIES.add(new Entry(m, s, Kind.NOUN)); }
     private static void stem(String m, String s) { ENTRIES.add(new Entry(m, s, Kind.STEM)); }
+    private static void verb(String m, String s) { ENTRIES.add(new Entry(m, s, Kind.VERB)); }
 
     /** 한 음절 명사 뒤에 올 수 있는 조사. */
     public static final String[] PARTICLES = {
@@ -63,7 +65,10 @@ public final class Dict {
         any("다섯", "다{ㅅㆍㅅ}");
         any("여덟", "여{ㄷㅡㄼ}");
         any("스물", "스믈");
-        any("하나", "{ㅎㆍ}나");
+        noun("하나", "{ㅎㆍ}{ㄴㅏㅎ}");
+        noun("둘", "{ㄷㅜㅀ}");
+        noun("셋", "{ㅅㅔㅎ}");
+        noun("넷", "{ㄴㅔㅎ}");
         any("하루", "{ㅎㆍ}{ㄹㆍ}");
         any("부처", "부텨");
         any("천지", "{ㅌㅕㄴ}디");
@@ -93,8 +98,8 @@ public final class Dict {
         any("왜냐하면", "엇뎨어뇨 {ㅎㆍ}란{ㄷㆎ}");
         any("부디", "모{ㄷㆍ}매");
         any("편안", "{ㅍㅕㄴ}안");
-        any("편하", "{ㅍㅕㄴ}안{ㅎㆍ}");
-        any("통하", "{ㅅㆍ}{ㅁㆍㅅ}");
+        verb("편하", "{ㅍㅕㄴ}안{ㅎㆍ}");
+        verb("통하", "{ㅅㆍ}{ㅁㆍㅅ}");
         any("만들", "{ㅁㆎㆁ}{ㄱㆍㄹ}");
         any("만드", "{ㅁㆎㆁ}{ㄱㆍ}");
         any("가르치", "{ㄱㆍ}{ㄹㆍ}치");
@@ -123,9 +128,9 @@ public final class Dict {
         any("에게", "{ㅇㆎ}그{ㆁㅔ}");
         any("한테", "{ㅇㆎ}그{ㆁㅔ}");
         any("께서", "{ㅺㅢ}셔");
-        any("에서", "{ㅇㆎ}셔");
         any("처럼", "{ㄱㆍ}티");
-        any("까지", "{ㅺㆍ}지");
+        any("까지", "{ㅺㆍ}장");
+        any("부터", "브터");
         // 한 음절 명사
         noun("꽃", "곶");
         noun("뜻", "{ㅳㅡㄷ}");
@@ -154,6 +159,69 @@ public final class Dict {
         stem("했", "{ㅎㆍ}{ㅇㅑㅅ}");
         stem("쓰", "{ㅄㅡ}");
         stem("이르", "니르");
+
+        // 옛 낱말로 바꾸기 (뜻이 같은 15세기 낱말)
+        any("친구", "벋");
+        any("여자", "겨집");
+        any("남자", "{ㅅㅗ}나{ㅎㆎ}");
+        any("사나이", "{ㅅㅗ}나{ㅎㆎ}");
+        any("어른", "얼운");
+        any("바위", "바회");
+        any("구멍", "구무");
+        any("얼굴", "{ㄴㆍㅊ}");
+        any("벌레", "벌에");
+        any("지금", "이제");
+        any("아주", "{ㄱㆍ}장");
+        any("가장", "{ㄱㆍ}장");
+        any("정말", "진실로");
+        any("진짜", "진실로");
+        any("너무", "너므");
+        any("어디", "어{ㄷㅢ}");
+        any("언제", "어느 제");
+        any("어떤", "엇던");
+        any("모두", "다");
+        any("모든", "모{ㄷㆍㄴ}");
+        any("많은", "{ㅎㆍㄴ}");
+        any("많아", "{ㅎㆍ}야");
+        any("예쁜", "고{ㅸㆍㄴ}");
+        any("말해", "닐어");
+        any("말했", "닐엇");
+        any("생각해", "{ㅅㆍ}랑{ㅎㆎ}");
+        any("사랑해", "괴여");
+        any("사랑했", "괴엿");
+        any("배워", "{ㅂㆎ}화");
+        any("배웠", "{ㅂㆎ}홧");
+        any("싸워", "사화");
+        any("기다려", "기드려");
+        any("아파", "알파");
+        any("배고파", "{ㅂㆎ}골파");
+        any("기뻐", "깃버");
+        any("빨라", "{ㅽㆍㄹ}라");
+        noun("산", "뫼");
+        noun("강", "가{ㄹㆍㅁ}");
+        noun("코", "{ㄱㅗㅎ}");
+        noun("배", "{ㅂㆎ}");
+        noun("곳", "곧");
+        noun("뼈", "{ㅽㅕ}");
+        // 받침이 달라도 맞추는 용언 (말한 → 니ᄅᆞᆫ)
+        verb("말하", "니{ㄹㆍ}");
+        verb("생각하", "{ㅅㆍ}랑{ㅎㆍ}");
+        verb("사랑하", "괴");
+        verb("일어나", "니러나");
+        verb("기다리", "기드리");
+        verb("만나", "맛나");
+        verb("배우", "{ㅂㆎ}호");
+        verb("싸우", "사호");
+        verb("아프", "알{ㅍㆍ}");
+        verb("배고프", "{ㅂㆎ}골{ㅍㆍ}");
+        verb("기쁘", "깃브");
+        verb("빠르", "{ㅽㆍ}{ㄹㆍ}");
+        stem("많", "{ㅎㆍ}");
+        stem("읽", "{ㄴㅣㄺ}");
+        stem("작", "{ㅈㅕㄱ}");
+        stem("예쁘", "곱");
+        stem("가깝", "{ㄱㆍㅅ}갑");
+        stem("닮", "{ㄷㆍㄻ}");
 
         // 긴 것부터 맞추도록 정렬
         Collections.sort(ENTRIES, (a, b) -> b.modern.length() - a.modern.length());

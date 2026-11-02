@@ -20,6 +20,7 @@ final class Prefs {
             {"palJong", "8종성", "꽃 → 곳, 있다 → 잇다"},
             {"yeorin", "여린히읗 ㆆ", "할 바 → ᄒᆞᇙ 바"},
             {"grammar", "옛 문법·말투", "중국과 달라 → 듕귁에 달아, 합니다 → ᄒᆞᄂᆞ이다"},
+            {"compat", "카톡 호환", "받침 붙는 옛 글자는 현대 글자로 (어ᄶᅥᆯ → 어쩔), 받침 깨짐 방지"},
     };
 
     static SharedPreferences get(Context c) { return c.getSharedPreferences(FILE, Context.MODE_PRIVATE); }
@@ -36,6 +37,7 @@ final class Prefs {
         o.palJong = p.getBoolean("palJong", true);
         o.yeorin = p.getBoolean("yeorin", true);
         o.grammar = p.getBoolean("grammar", true);
+        o.compat = p.getBoolean("compat", false);
         return o;
     }
 
