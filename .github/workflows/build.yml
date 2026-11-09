@@ -29,7 +29,11 @@ jobs:
           java -cp /tmp/et DataCheck data
 
       - name: Build APK
+        env:
+          YETGEUL_KEYSTORE: ${{ secrets.YETGEUL_KEYSTORE }}
+          YETGEUL_KEYSTORE_PASSWORD: ${{ secrets.YETGEUL_KEYSTORE_PASSWORD }}
         run: |
+          if [ -n "$YETGEUL_KEYSTORE" ]; then echo "$YETGEUL_KEYSTORE" | base64 -d > app/yetgeul.jks; fi
           echo "sdk.dir=$ANDROID_HOME" > local.properties
           chmod +x gradlew
           ./gradlew --no-daemon assembleRelease
