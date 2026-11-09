@@ -58,6 +58,9 @@ if ($SelfTest) {
     $c = New-Object Yetgeul.Converter
     $samples = @('나라의 말씀이 중국과 달라 문자와 서로 통하지 아니하므로', '사랑합니다', '안녕하세요', '하늘과 땅이 처음 생길 때')
     foreach ($s in $samples) { "$s`n  -> $($c.Convert($s))" }
+    $lo = New-Object Yetgeul.Options; $lo.Letter = $true
+    $lc = New-Object Yetgeul.Converter -ArgumentList $lo
+    foreach ($s in @('걱정하지 마세요', '편지 잘 받았습니다')) { "[편지체] $s`n  -> $($lc.Convert($s))" }
     return
 }
 
@@ -75,6 +78,7 @@ if (-not $mutex.WaitOne(0)) {
 $settingsDir = Join-Path $env:APPDATA 'Yetgeul'
 $settingsFile = Join-Path $settingsDir 'settings.json'
 $ruleNames = [ordered]@{
+    Letter = '조선 후기 편지체  (걱정하지 마세요 → 념녀ᄒᆞ디 마ᄋᆞᆸ쇼셔)'
     Araea = '아래아 ㆍ  (하늘 → ᄒᆞᄂᆞᆯ)'
     Pansios = '반치음 ㅿ  (마음 → ᄆᆞᅀᆞᆷ)'
     Yesieung = '옛이응 ㆁ  (백성 → ᄇᆡᆨ셔ᇰ)'
@@ -87,7 +91,7 @@ $ruleNames = [ordered]@{
     Compat = '카톡 호환: 받침 붙는 옛 글자는 현대 글자로'
 }
 $state = @{ Enabled = $true }
-foreach ($k in $ruleNames.Keys) { $state[$k] = ($k -ne 'Compat') }
+foreach ($k in $ruleNames.Keys) { $state[$k] = ($k -ne 'Compat' -and $k -ne 'Letter') }
 if (Test-Path $settingsFile) {
     try {
         $saved = Get-Content $settingsFile -Raw -Encoding UTF8 | ConvertFrom-Json

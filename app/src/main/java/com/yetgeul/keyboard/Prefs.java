@@ -38,6 +38,7 @@ final class Prefs {
         o.yeorin = p.getBoolean("yeorin", true);
         o.grammar = p.getBoolean("grammar", true);
         o.compat = p.getBoolean("compat", false);
+        o.letter = p.getBoolean("letter", false);
         return o;
     }
 

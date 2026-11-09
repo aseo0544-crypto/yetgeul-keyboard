@@ -14,6 +14,11 @@ public class EngineTest {
         };
         for (String s : in) out.println(s + "\n  → " + c.convert(s));
         Converter.Options o = new Converter.Options(); o.compat = true;
+        Converter.Options lo = new Converter.Options(); lo.letter = true;
+        Converter lc = new Converter(lo);
+        for (String s : new String[]{"어머님, 그동안 잘 지내셨어요?", "편지 잘 받았습니다", "걱정하지 마세요", "보고 싶어요",
+                "나는 무사히 잘 있다", "이만 줄인다", "연락할게", "공부 열심히 해라"})
+            out.println("[편지체] " + s + "\n  → " + lc.convert(s));
         out.println("[카톡 호환] " + new Converter(o).convert("어쩔 수 없지 마음 사람이 백성"));
     }
 }

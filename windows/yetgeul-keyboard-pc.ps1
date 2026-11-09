@@ -180,7 +180,7 @@ namespace Yetgeul
     public class Options
     {
         public bool Araea = true, Pansios = true, Yesieung = true, Yeorin = true, Beop = true,
-            Hapyong = true, Yeoneol = true, PalJong = true, Grammar = true, Compat = false;
+            Hapyong = true, Yeoneol = true, PalJong = true, Grammar = true, Compat = false, Letter = false;
     }
 
     public class Converter
@@ -189,6 +189,8 @@ namespace Yetgeul
         class Entry { public string M, S; public Kind K; public Entry(string m, string s, Kind k) { M = m; S = s; K = k; } }
 
         static readonly List<Entry> ENTRIES = new List<Entry>();
+        static readonly List<Entry> LETTER = new List<Entry>();
+        static readonly List<Entry> LETTER_FIRST = new List<Entry>();
         static readonly HashSet<string> PARTICLES = new HashSet<string>(new[] { "", "이", "가", "은", "는", "을", "를", "의", "에", "에서", "에게", "도", "만", "과", "와", "로", "으로", "처럼", "까지", "부터", "마다", "이다", "이고", "이며", "이나", "나", "께", "한테", "보다", "들", "들이", "들은", "들을", "들의", "이여", "아", "야", "입니다", "이에요", "예요", "이요" });
         static readonly HashSet<string> GA_EXCEPT = new HashSet<string>(new[] {
             "휴가", "요가", "대가", "고가", "시가", "주가", "사가", "가가", "노가", "부가", "지가", "도가", "자가", "어디가" });
@@ -197,6 +199,10 @@ namespace Yetgeul
         static void noun(string m, string s) { ENTRIES.Add(new Entry(m, s, Kind.NOUN)); }
         static void stem(string m, string s) { ENTRIES.Add(new Entry(m, s, Kind.STEM)); }
         static void verb(string m, string s) { ENTRIES.Add(new Entry(m, s, Kind.VERB)); }
+        static void lany(string m, string s) { LETTER.Add(new Entry(m, s, Kind.ANY)); }
+        static void lnoun(string m, string s) { LETTER.Add(new Entry(m, s, Kind.NOUN)); }
+        static void lstem(string m, string s) { LETTER.Add(new Entry(m, s, Kind.STEM)); }
+        static void lverb(string m, string s) { LETTER.Add(new Entry(m, s, Kind.VERB)); }
 
         static Converter()
         {
@@ -542,18 +548,71 @@ namespace Yetgeul
             any("율무", "율{ㅁㅢ}");
             noun("절", "{ㄷㅕㄹ}");
             any("울타리", "울");
+            lany("걱정", "념녀");
+            lany("염려", "념녀");
+            lany("소식", "긔별");
+            lany("연락", "긔별");
+            lnoun("잘", "{ㄷㅛ}히");
+            lany("건강히", "평안이");
+            lany("건강", "평안");
+            lany("편안", "평안");
+            lany("안부", "문안");
+            lany("그동안", "그{ㅅㆍ}이");
+            lany("그사이", "그{ㅅㆍ}이");
+            lany("어머님", "어마님");
+            lany("어머니", "어마님");
+            lany("엄마", "어마님");
+            lany("아버님", "아바님");
+            lany("아버지", "아바님");
+            lany("아빠", "아바님");
+            lany("자식", "{ㅈㆍ}식");
+            lany("자세히", "{ㅈㆍ}시");
+            lany("자주", "{ㅈㆍ}조");
+            lany("무사히", "무{ㅅㆍ}히");
+            lany("무사", "무{ㅅㆍ}");
+            lany("부디", "브{ㄷㆎ}");
+            lany("더욱", "더옥");
+            lany("날씨", "일긔");
+            lany("마음", "{ㅁㆍ}{ㅇㆍㅁ}");
+            lany("서울", "셔울");
+            lany("문안", "문|안");
+            lany("줄인다", "그치노라");
+            lany("줄입니다", "그치{ㅇㆍㅂ}{ㄴㆍ}이다");
+            lany("줄여요", "그치{ㅇㆍㅂ}{ㄴㆍ}이다");
+            lany("어떻게", "엇디");
+            lany("어떠", "엇더");
+            lany("어떤", "엇던");
+            lany("편지", "편지");
+            lverb("지내", "디내");
+            lstem("좋", "{ㄷㅛㅎ}");
+            lstem("싶", "시브");
+            lverb("바라", "{ㅂㆍ}라");
+            lverb("드리", "드리");
             ENTRIES.Sort(delegate(Entry a, Entry b) { return b.M.Length - a.M.Length; });
+            LETTER.Sort(delegate(Entry a, Entry b) { return b.M.Length - a.M.Length; });
+            LETTER_FIRST.AddRange(LETTER); LETTER_FIRST.AddRange(ENTRIES);
         }
 
         readonly Options o;
         int groupSeq = 0;
 
-        public Converter(Options options) { o = options; }
+        public Converter(Options options)
+        {
+            if (options.Letter)
+            {
+                Options c = new Options();
+                c.Araea = options.Araea; c.Hapyong = options.Hapyong; c.Yeoneol = options.Yeoneol; c.PalJong = options.PalJong;
+                c.Grammar = options.Grammar; c.Compat = options.Compat; c.Letter = true;
+                c.Pansios = false; c.Yesieung = false; c.Beop = false; c.Yeorin = false;
+                options = c;
+            }
+            o = options;
+        }
         public Converter() : this(new Options()) { }
 
         static readonly Regex WORD = new Regex("[가-힣ᄀ-ᇿꥠ-꥿ힰ-퟿]+");
         static readonly Regex P_DIFFER = new Regex("([가-힣]+?)(과|와)(\\s+)(다르|달라|달리|다른|다릅|다를|달랐)");
-        static readonly Regex P_NEG = new Regex("([가-힣]+?)지(\\s+)(않|아니|못)");
+        static readonly Regex P_NEG = new Regex("([가-힣]+?)지(\\s+)(않|아니|못|마(?=세|라|십|요|시|[^가-힣]|$))");
         static readonly Regex P_JUL = new Regex("([가-힣]+)(\\s+)줄(을)?(?=\\s+(알|몰|모르))");
         static readonly Regex WH = new Regex("(^|[^가-힣])(어디|무엇|뭐|누구|누가|언제|어떤|어떻게|어찌|왜|몇|어느|무슨)");
         bool wh;
@@ -563,7 +622,7 @@ namespace Yetgeul
         public string Convert(string text)
         {
             wh = WH.IsMatch(text);
-            if (o.Grammar) text = PhraseRules(text);
+            if (o.Grammar) text = PhraseRules(text, o.Letter);
             List<string> parts = new List<string>();
             List<bool> isWord = new List<bool>();
             int last = 0;
@@ -591,7 +650,7 @@ namespace Yetgeul
             return sb.ToString();
         }
 
-        static string PhraseRules(string t)
+        static string PhraseRules(string t, bool letter)
         {
             t = P_DIFFER.Replace(t, "$1에$3$4");
             t = P_NEG.Replace(t, "$1디$2$3");
@@ -603,7 +662,7 @@ namespace Yetgeul
                 if (fin != 4 && fin != 8) return m.Value;
                 return g1 + m.Groups[2].Value + (m.Groups[3].Success ? "\u1103\u119E\u1105\u119E\u11AF" : "\u1103\u119E\u11AF");
             });
-            t = P_WANT.Replace(t, delegate(Match m)
+            if (!letter) t = P_WANT.Replace(t, delegate(Match m)
             {
                 string e = m.Groups[3].Value, r;
                 switch (e)
@@ -632,9 +691,10 @@ namespace Yetgeul
         public List<Syl> ConvertWord(string word, bool question)
         {
             List<Syl> s = Jamo.Parse(word, true);
-            if (o.Grammar) s = Endings(s, question);
+            if (o.Grammar) s = o.Letter ? LetterEndings(s, question) : Endings(s, question);
             s = Dictionary(s, word);
             if (o.Grammar) { AfterStem(s); Copula(s); Nominal(s, word); SubjectGa(s, word); Particles(s); }
+            if (o.Letter) LetterFix(s);
             for (int i = 0; i < s.Count; i++)
             {
                 Syl a = s[i];
@@ -676,6 +736,7 @@ namespace Yetgeul
                 }
             }
             if (o.PalJong) EightFinals(s);
+            if (o.PalJong && o.Letter) foreach (Syl a in s) if (a.IsHangul && a.T == Jamo.T_D) a.T = Jamo.T_S;
             if (o.Yesieung) foreach (Syl a in s) if (a.IsHangul && a.T == Jamo.T_NG) a.T = Jamo.T_YESIEUNG;
             return s;
         }
@@ -787,6 +848,80 @@ namespace Yetgeul
             return s;
         }
 
+        List<Syl> LetterEndings(List<Syl> s, bool q)
+        {
+            int n = s.Count;
+            string w = Modern(s);
+            const string HON = "{ㅅㆍㅂ}{ㄴㆍ}이다", HON_V = "{ㅇㆍㅂ}{ㄴㆍ}이다";
+            if (q)
+            {
+                string[,] fq = { {"셨어요", "시니잇가"}, {"셨나요", "시니잇가"}, {"으세요", "으시니잇가"}, {"세요", "시니잇가"},
+                    {"으신가요", "으신가"}, {"신가요", "신가"}, {"습니까", "{ㅅㆍㅂ}{ㄴㆍ}니잇가"}, {"입니까", "이니잇가"},
+                    {"이에요", "이니잇가"}, {"나요", "{ㄴㆍㄴ}가"}, {"느냐", "{ㄴㆍㄴ}다"} };
+                for (int i = 0; i < fq.GetLength(0); i++)
+                    if (w.EndsWith(fq[i, 0]) && w.Length > fq[i, 0].Length) return ReplaceTail(s, fq[i, 0].Length, fq[i, 1], null);
+                if (n >= 3 && w.EndsWith("니까") && s[n - 3].IsHangul && s[n - 3].T == Jamo.T_B)
+                    return ReplaceTail(s, 2, "{ㅇㆍㅂ}{ㄴㆍ}니잇가", s[n - 3]);
+                if (n >= 3 && (w.EndsWith("어요") || w.EndsWith("아요"))) return ReplaceTail(s, 2, "{ㄴㆍㄴ}가", null);
+                if (n >= 2 && (w.EndsWith("니") || w.EndsWith("냐") || w.EndsWith("어") || w.EndsWith("아")))
+                {
+                    Syl pq = s[n - 2];
+                    if (pq.IsHangul && !pq.Locked && pq.T != Jamo.T_B) return ReplaceTail(s, 1, "{ㄴㆍㄴ}다", null);
+                }
+                return s;
+            }
+            string[,] fx = {
+                {"입니다", "이" + HON_V}, {"이에요", "이" + HON_V}, {"습니다", HON},
+                {"으십시오", "으{ㅅㅛ}{ㅅㅕ}"}, {"십시오", "{ㅇㆍㅂ}{ㅅㅛ}{ㅅㅕ}"}, {"으세요", "으{ㅅㅛ}{ㅅㅕ}"}, {"세요", "{ㅇㆍㅂ}{ㅅㅛ}{ㅅㅕ}"},
+                {"으므로", "으니"}, {"니까", "니"}, {"해라", "{ㅎㆍ}여라"}, {"있어라", "잇거라"},
+                {"겠습니다", "리" + HON_V}, {"겠다", "리라"}, {"겠어요", "리" + HON_V} };
+            for (int i = 0; i < fx.GetLength(0); i++)
+                if (w.EndsWith(fx[i, 0]) && (w.Length > fx[i, 0].Length || fx[i, 0] == "있어라" || fx[i, 0] == "해라"))
+                    return ReplaceTail(s, fx[i, 0].Length, fx[i, 1], null);
+            if (n >= 3 && w.EndsWith("니다"))
+            {
+                Syl p = s[n - 3];
+                if (p.IsHangul && !p.Locked && p.T == Jamo.T_B) return ReplaceTail(s, 2, HON_V, p);
+            }
+            if (n >= 2 && w.EndsWith("예요")) return ReplaceTail(s, 2, "이" + HON_V, null);
+            if (n >= 2 && w.EndsWith("해요")) { s[n - 2].V = Jamo.V_A; return ReplaceTail(s, 1, HON_V, null); }
+            if (n >= 3 && (w.EndsWith("어요") || w.EndsWith("아요")))
+            {
+                Syl p = s[n - 3];
+                if (p.IsHangul && p.T != 0) return ReplaceTail(s, 2, HON, null);
+                return ReplaceTail(s, 1, HON_V, null);
+            }
+            if (n >= 2 && w.EndsWith("요"))
+            {
+                Syl p = s[n - 2];
+                if (p.IsHangul && !p.Locked && p.T == 0) return ReplaceTail(s, 1, HON_V, null);
+            }
+            if (w == "있다") return ReplaceTail(s, 1, "노라", null);
+            if (n >= 2)
+            {
+                Syl p = s[n - 2], z = s[n - 1];
+                if (p.IsHangul && !p.Locked && z.IsHangul && !z.Locked)
+                {
+                    if (w.EndsWith("네") && !BANMAL_EXCEPT.Contains(w)) return ReplaceTail(s, 1, "{ㄴㆎ}", null);
+                    if (w.EndsWith("자") && !BANMAL_EXCEPT.Contains(w)) return ReplaceTail(s, 1, "{ㅈㅑ}", null);
+                    if ((w.EndsWith("게") || w.EndsWith("께")) && p.T == Jamo.T_R) { p.T = 0; return ReplaceTail(s, 1, "마", null); }
+                }
+            }
+            if (n >= 1 && w.EndsWith("해") && !s[n - 1].Locked) { s[n - 1].V = Jamo.V_A; return ReplaceTail(s, 0, "여", null); }
+            return s;
+        }
+
+        static void LetterFix(List<Syl> s)
+        {
+            for (int i = 1; i < s.Count; i++)
+            {
+                Syl a = s[i - 1], b = s[i];
+                if (!a.IsHangul || !b.IsHangul) continue;
+                if (b.Locked && b.L == Jamo.L_S && b.V == Jamo.V_ARAEA && b.T == Jamo.T_B && a.T == 0) b.L = Jamo.L_NULL;
+                if (a.L == Jamo.L_H && (a.V == Jamo.V_A || a.V == Jamo.V_ARAEA) && a.T == 0 && b.L == Jamo.L_NULL && b.V == Jamo.V_YA && b.T == 0) b.V = Jamo.V_YEO;
+            }
+        }
+
         List<Syl> ReplaceTail(List<Syl> s, int k, string spec, Syl stripT)
         {
             if (stripT != null) stripT.T = 0;
@@ -816,7 +951,7 @@ namespace Yetgeul
             {
                 Entry hit = null;
                 int carryT = 0;
-                foreach (Entry e in ENTRIES)
+                foreach (Entry e in o.Letter ? LETTER_FIRST : ENTRIES)
                 {
                     carryT = 0;
                     if (i + e.M.Length > m.Length || string.CompareOrdinal(m, i, e.M, 0, e.M.Length) != 0)
@@ -881,7 +1016,7 @@ namespace Yetgeul
 
         static readonly HashSet<string> BANMAL_EXCEPT = new HashSet<string>(new[] {
             "그네", "우리네", "너네", "저네", "아저씨네", "의자", "과자", "모자", "사자", "부자", "감자", "상자", "기자",
-            "왕자", "숫자", "액자", "판자", "제자", "환자", "남자", "여자", "주자", "타자", "효자", "가자",
+            "왕자", "숫자", "액자", "판자", "제자", "환자", "남자", "여자", "주자", "타자", "효자",
             "피자", "원자", "적자", "투자", "혼자", "이자", "단자", "탁자", "자자", "글자", "문자", "한자", "선자" });
 
         static void Copula(List<Syl> s)
@@ -1194,6 +1329,9 @@ if ($SelfTest) {
     $c = New-Object Yetgeul.Converter
     $samples = @('나라의 말씀이 중국과 달라 문자와 서로 통하지 아니하므로', '사랑합니다', '안녕하세요', '하늘과 땅이 처음 생길 때')
     foreach ($s in $samples) { "$s`n  -> $($c.Convert($s))" }
+    $lo = New-Object Yetgeul.Options; $lo.Letter = $true
+    $lc = New-Object Yetgeul.Converter -ArgumentList $lo
+    foreach ($s in @('걱정하지 마세요', '편지 잘 받았습니다')) { "[편지체] $s`n  -> $($lc.Convert($s))" }
     return
 }
 
@@ -1211,6 +1349,7 @@ if (-not $mutex.WaitOne(0)) {
 $settingsDir = Join-Path $env:APPDATA 'Yetgeul'
 $settingsFile = Join-Path $settingsDir 'settings.json'
 $ruleNames = [ordered]@{
+    Letter = '조선 후기 편지체  (걱정하지 마세요 → 념녀ᄒᆞ디 마ᄋᆞᆸ쇼셔)'
     Araea = '아래아 ㆍ  (하늘 → ᄒᆞᄂᆞᆯ)'
     Pansios = '반치음 ㅿ  (마음 → ᄆᆞᅀᆞᆷ)'
     Yesieung = '옛이응 ㆁ  (백성 → ᄇᆡᆨ셔ᇰ)'
@@ -1223,7 +1362,7 @@ $ruleNames = [ordered]@{
     Compat = '카톡 호환: 받침 붙는 옛 글자는 현대 글자로'
 }
 $state = @{ Enabled = $true }
-foreach ($k in $ruleNames.Keys) { $state[$k] = ($k -ne 'Compat') }
+foreach ($k in $ruleNames.Keys) { $state[$k] = ($k -ne 'Compat' -and $k -ne 'Letter') }
 if (Test-Path $settingsFile) {
     try {
         $saved = Get-Content $settingsFile -Raw -Encoding UTF8 | ConvertFrom-Json

@@ -17,6 +17,8 @@ import android.view.inputmethod.InputMethodManager;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.LinearLayout;
+import android.widget.RadioButton;
+import android.widget.RadioGroup;
 import android.widget.ScrollView;
 import android.widget.Switch;
 import android.widget.TextView;
@@ -90,12 +92,35 @@ public class SettingsActivity extends Activity {
         });
         sample.setText("나라의 말씀이 중국과 달라 문자와 서로 통하지 아니하므로");
 
-        root.addView(header("3. 바꿀 규칙"));
+        root.addView(header("3. 바꿀 말투"));
+        RadioGroup era = new RadioGroup(this);
+        era.setOrientation(RadioGroup.VERTICAL);
+        RadioButton c15 = new RadioButton(this);
+        c15.setId(View.generateViewId());
+        c15.setText("15세기 (훈민정음)  —  ㆍ ㅿ ㆁ ㅸ, 이어적기, 8종성");
+        RadioButton cLetter = new RadioButton(this);
+        cLetter.setId(View.generateViewId());
+        cLetter.setText("조선 후기 편지체  —  걱정하지 마세요 → 념녀ᄒᆞ디 마ᄋᆞᆸ쇼셔");
+        cLetter.setTypeface(oldFace);
+        era.addView(c15);
+        era.addView(cLetter);
+        boolean letterOn = Prefs.get(this).getBoolean("letter", false);
+        era.check(letterOn ? cLetter.getId() : c15.getId());
+        int cLetterId = cLetter.getId();
+        era.setOnCheckedChangeListener((g, id) -> {
+            Prefs.get(this).edit().putBoolean("letter", id == cLetterId).apply();
+            refreshPreview();
+        });
+        root.addView(era);
+        root.addView(text("편지체는 17~19세기 한글 편지 말투예요. 높임말로 치면 윗사람께(ᄒᆞᄋᆞᆸᄂᆞ이다), 반말로 치면 아랫사람에게(ᄒᆞ노라·ᄒᆞ여라) 쓰는 편지가 됩니다. "
+                + "편지체에서는 ㅿ·ㆁ·ㅸ·ㆆ 규칙이 꺼집니다.", 13));
+
+        root.addView(header("4. 바꿀 규칙"));
         SharedPreferences p = Prefs.get(this);
         for (String[] r : Prefs.RULES) {
             root.addView(toggle(r[1], r[2], r[0], !"compat".equals(r[0])));
         }
-        root.addView(header("4. 자판"));
+        root.addView(header("5. 자판"));
         root.addView(toggle("길게 누르면 옛 자모", "ㅅ → ㅿ ㅺ ㅼ ㅽ, ㅇ → ㆁ ㆆ, ㅏ → ㆍ", "longPress", true));
 
         TextView note = text("\n받는 사람의 폰 글꼴이 옛한글을 지원하지 않으면 ㆍ·ㅿ 같은 글자가 풀어져 보일 수 있습니다. "

@@ -9,7 +9,7 @@ dic = open(os.path.join(eng, "Dict.java"), encoding="utf-8").read()
 cs = open(os.path.join(here, "Engine.cs.tpl"), encoding="utf-8").read()
 for k in ("CHO", "JUNG", "JONG"):
     cs = cs.replace("@@%s@@" % k, re.search(k + r" = \{(.*?)\};", tables).group(1))
-entries = re.findall(r'^\s+((?:any|noun|stem|verb)\("[^"]*", "[^"]*"\);)', dic, re.M)
+entries = re.findall(r'^\s+((?:l?any|l?noun|l?stem|l?verb)\("[^"]*", "[^"]*"\);)', dic, re.M)
 cs = cs.replace("@@DICT@@", "\n".join("            " + e for e in entries))
 parts = re.search(r"PARTICLES = \{(.*?)\};", dic, re.S).group(1)
 cs = cs.replace("@@PARTICLES@@", " ".join(parts.split()))

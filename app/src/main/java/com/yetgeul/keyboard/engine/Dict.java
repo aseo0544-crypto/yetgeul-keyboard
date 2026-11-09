@@ -20,11 +20,17 @@ public final class Dict {
     }
 
     public static final List<Entry> ENTRIES = new ArrayList<>();
+    /** 조선 후기 편지체 낱말 (편지체 모드에서 ENTRIES보다 먼저 봄). */
+    public static final List<Entry> LETTER = new ArrayList<>();
 
     private static void any(String m, String s) { ENTRIES.add(new Entry(m, s, Kind.ANY)); }
     private static void noun(String m, String s) { ENTRIES.add(new Entry(m, s, Kind.NOUN)); }
     private static void stem(String m, String s) { ENTRIES.add(new Entry(m, s, Kind.STEM)); }
     private static void verb(String m, String s) { ENTRIES.add(new Entry(m, s, Kind.VERB)); }
+    private static void lany(String m, String s) { LETTER.add(new Entry(m, s, Kind.ANY)); }
+    private static void lnoun(String m, String s) { LETTER.add(new Entry(m, s, Kind.NOUN)); }
+    private static void lstem(String m, String s) { LETTER.add(new Entry(m, s, Kind.STEM)); }
+    private static void lverb(String m, String s) { LETTER.add(new Entry(m, s, Kind.VERB)); }
 
     /** 한 음절 명사 뒤에 올 수 있는 조사. */
     public static final String[] PARTICLES = {
@@ -386,8 +392,51 @@ public final class Dict {
         noun("절", "{ㄷㅕㄹ}");
         any("울타리", "울");
 
+        // ───── 조선 후기 편지체 (국립국어원 국어 역사 자료 말뭉치 2024의 17~19세기 언간에서 자주 쓰인 꼴)
+        lany("걱정", "념녀");
+        lany("염려", "념녀");
+        lany("소식", "긔별");
+        lany("연락", "긔별");
+        lnoun("잘", "{ㄷㅛ}히");
+        lany("건강히", "평안이");
+        lany("건강", "평안");
+        lany("편안", "평안");
+        lany("안부", "문안");
+        lany("그동안", "그{ㅅㆍ}이");
+        lany("그사이", "그{ㅅㆍ}이");
+        lany("어머님", "어마님");
+        lany("어머니", "어마님");
+        lany("엄마", "어마님");
+        lany("아버님", "아바님");
+        lany("아버지", "아바님");
+        lany("아빠", "아바님");
+        lany("자식", "{ㅈㆍ}식");
+        lany("자세히", "{ㅈㆍ}시");
+        lany("자주", "{ㅈㆍ}조");
+        lany("무사히", "무{ㅅㆍ}히");
+        lany("무사", "무{ㅅㆍ}");
+        lany("부디", "브{ㄷㆎ}");
+        lany("더욱", "더옥");
+        lany("날씨", "일긔");
+        lany("마음", "{ㅁㆍ}{ㅇㆍㅁ}");
+        lany("서울", "셔울");
+        lany("문안", "문|안");
+        lany("줄인다", "그치노라");
+        lany("줄입니다", "그치{ㅇㆍㅂ}{ㄴㆍ}이다");
+        lany("줄여요", "그치{ㅇㆍㅂ}{ㄴㆍ}이다");
+        lany("어떻게", "엇디");
+        lany("어떠", "엇더");
+        lany("어떤", "엇던");
+        lany("편지", "편지");
+        lverb("지내", "디내");
+        lstem("좋", "{ㄷㅛㅎ}");
+        lstem("싶", "시브");
+        lverb("바라", "{ㅂㆍ}라");
+        lverb("드리", "드리");
+
         // 긴 것부터 맞추도록 정렬
         Collections.sort(ENTRIES, (a, b) -> b.modern.length() - a.modern.length());
+        Collections.sort(LETTER, (a, b) -> b.modern.length() - a.modern.length());
     }
 
     private Dict() {}

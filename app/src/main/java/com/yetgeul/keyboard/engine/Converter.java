@@ -22,12 +22,22 @@ public final class Converter {
         public boolean yeoneol = true;    // 이어적기 (사람이→사ᄅᆞ미)
         public boolean palJong = true;    // 8종성 (꽃→곳, 있다→잇다)
         public boolean grammar = true;    // 옛 문법·말투 (합니다→ᄒᆞᄂᆞ이다, 과 달라→에 달아)
-        public boolean compat = false;    // 카톡 호환: 받침이 붙는 옛 글자는 현대 글자로 (받침 깨짐 방지)
+        public boolean compat = false;
+        public boolean letter = false;    // 조선 후기 편지체 (ㅿ·ㆁ·ㅸ·ㆆ 없음, 7종성, ᄒᆞᄋᆞᆸᄂᆞ이다)    // 카톡 호환: 받침이 붙는 옛 글자는 현대 글자로 (받침 깨짐 방지)
     }
 
     private final Options o;
 
-    public Converter(Options options) { this.o = options; }
+    public Converter(Options options) {
+        if (options.letter) {   // 편지체: 15세기에만 쓰던 글자는 끔
+            Options c = new Options();
+            c.araea = options.araea; c.hapyong = options.hapyong; c.yeoneol = options.yeoneol; c.palJong = options.palJong;
+            c.grammar = options.grammar; c.compat = options.compat; c.letter = true;
+            c.pansios = false; c.yesieung = false; c.beop = false; c.yeorin = false;
+            options = c;
+        }
+        this.o = options;
+    }
 
     public Converter() { this(new Options()); }
 
@@ -41,7 +51,7 @@ public final class Converter {
 
     public String convert(String text) {
         wh = WH.matcher(text).find();
-        if (o.grammar) text = phraseRules(text);
+        if (o.grammar) text = phraseRules(text, o.letter);
         List<String> parts = new ArrayList<>();   // 낱말과 그 사이 글자를 번갈아
         List<Boolean> isWord = new ArrayList<>();
         Matcher m = WORD.matcher(text);
@@ -70,14 +80,16 @@ public final class Converter {
     }
 
     private static final Pattern P_DIFFER = Pattern.compile("([가-힣]+?)(과|와)(\\s+)(다르|달라|달리|다른|다릅|다를|달랐)");
-    private static final Pattern P_NEG = Pattern.compile("([가-힣]+?)지(\\s+)(않|아니|못)");
+    private static final Pattern P_NEG = Pattern.compile("([가-힣]+?)지(\\s+)(않|아니|못|마(?=세|라|십|요|시|[^가-힣]|$))");
     /** 아는 줄 알고 → ᄃᆞᆯ (매인이름씨 ᄃᆞᆯ) */
     private static final Pattern P_JUL = Pattern.compile("([가-힣]+)(\\s+)줄(을)?(?=\\s+(알|몰|모르))");
     private static final Pattern P_WANT = Pattern.compile("([가-힣]+?)고(\\s+)싶(습니다|어요|으면|었다|다|어|은)");
     private static final Pattern P_WILL = Pattern.compile("([가-힣]*)([가-힣])\\s+(것입니다|것이에요|거예요|것이다|거야|거다)");
 
     /** 낱말 경계를 넘는 옛 문법 패턴. */
-    static String phraseRules(String t) {
+    static String phraseRules(String t) { return phraseRules(t, false); }
+
+    static String phraseRules(String t, boolean letter) {
         t = P_DIFFER.matcher(t).replaceAll("$1에$3$4");
         t = P_NEG.matcher(t).replaceAll("$1디$2$3");
         Matcher mj = P_JUL.matcher(t);
@@ -91,7 +103,7 @@ public final class Converter {
         }
         mj.appendTail(sj);
         t = sj.toString();
-        Matcher m = P_WANT.matcher(t);
+        Matcher m = P_WANT.matcher(letter ? "" : t);   // 편지체는 싶다 → 시브다 (사전)
         StringBuffer sb = new StringBuffer();
         while (m.find()) {
             String e = m.group(3), r;
@@ -106,7 +118,7 @@ public final class Converter {
             m.appendReplacement(sb, Matcher.quoteReplacement(m.group(1) + "고져" + m.group(2) + r));
         }
         m.appendTail(sb);
-        t = sb.toString();
+        if (!letter) t = sb.toString();
         // 갈 것이다 → 가리라
         m = P_WILL.matcher(t);
         sb = new StringBuffer();
@@ -135,9 +147,10 @@ public final class Converter {
     public List<Syl> convertWord(String word, boolean question) {
         List<Syl> s = Jamo.parse(word, true);
         int n0 = s.size();
-        if (o.grammar) s = endings(s, question);
+        if (o.grammar) s = o.letter ? letterEndings(s, question) : endings(s, question);
         s = dictionary(s, word, n0);
         if (o.grammar) { afterStem(s); copula(s); nominal(s, word); subjectGa(s, word); particles(s); }
+        if (o.letter) letterFix(s);
         for (int i = 0; i < s.size(); i++) {
             Syl a = s.get(i);
             if (!a.isHangul() || a.locked) continue;
@@ -180,6 +193,7 @@ public final class Converter {
             }
         }
         if (o.palJong) eightFinals(s);
+        if (o.palJong && o.letter) for (Syl a : s) if (a.isHangul() && a.t == Jamo.T_D) a.t = Jamo.T_S;   // 7종성: 몯 → 못
         if (o.yesieung) for (Syl a : s) if (a.isHangul() && a.t == Jamo.T_NG) a.t = Jamo.T_YESIEUNG;
         return s;
     }
@@ -293,6 +307,74 @@ public final class Converter {
         return s;
     }
 
+    private static final List<Dict.Entry> LETTER_FIRST = new ArrayList<>();
+    static { LETTER_FIRST.addAll(Dict.LETTER); LETTER_FIRST.addAll(Dict.ENTRIES); }
+
+    /** 조선 후기 편지체 끝맺음: 높임말 → ᄒᆞᄋᆞᆸᄂᆞ이다·ᄋᆞᆸ쇼셔·시니잇가, 반말 → ᄒᆞ노라·ᄒᆞ여라·ᄒᆞ마. */
+    private List<Syl> letterEndings(List<Syl> s, boolean q) {
+        int n = s.size();
+        String w = modern(s);
+        final String HON = "{ㅅㆍㅂ}{ㄴㆍ}이다", HON_V = "{ㅇㆍㅂ}{ㄴㆍ}이다";
+        if (q) {
+            String[][] fq = {{"셨어요", "시니잇가"}, {"셨나요", "시니잇가"}, {"으세요", "으시니잇가"}, {"세요", "시니잇가"},
+                    {"으신가요", "으신가"}, {"신가요", "신가"}, {"습니까", "{ㅅㆍㅂ}{ㄴㆍ}니잇가"}, {"입니까", "이니잇가"},
+                    {"이에요", "이니잇가"}, {"나요", "{ㄴㆍㄴ}가"}, {"느냐", "{ㄴㆍㄴ}다"}};
+            for (String[] f : fq) if (w.endsWith(f[0]) && w.length() > f[0].length()) return replaceTail(s, f[0].length(), f[1], null);
+            if (n >= 3 && w.endsWith("니까") && s.get(n - 3).isHangul() && s.get(n - 3).t == Jamo.T_B)
+                return replaceTail(s, 2, "{ㅇㆍㅂ}{ㄴㆍ}니잇가", s.get(n - 3));
+            if (n >= 2 && (w.endsWith("어요") || w.endsWith("아요")) && n >= 3) return replaceTail(s, 2, "{ㄴㆍㄴ}가", null);
+            if (n >= 2 && (w.endsWith("니") || w.endsWith("냐") || w.endsWith("어") || w.endsWith("아"))) {
+                Syl p = s.get(n - 2);
+                if (p.isHangul() && !p.locked && p.t != Jamo.T_B) return replaceTail(s, 1, "{ㄴㆍㄴ}다", null);
+            }
+            return s;
+        }
+        String[][] fixed = {
+                {"입니다", "이" + HON_V}, {"이에요", "이" + HON_V}, {"습니다", HON},
+                {"으십시오", "으{ㅅㅛ}{ㅅㅕ}"}, {"십시오", "{ㅇㆍㅂ}{ㅅㅛ}{ㅅㅕ}"}, {"으세요", "으{ㅅㅛ}{ㅅㅕ}"}, {"세요", "{ㅇㆍㅂ}{ㅅㅛ}{ㅅㅕ}"},
+                {"으므로", "으니"}, {"니까", "니"}, {"해라", "{ㅎㆍ}여라"}, {"있어라", "잇거라"},
+                {"겠습니다", "리" + HON_V}, {"겠다", "리라"}, {"겠어요", "리" + HON_V},
+        };
+        for (String[] f : fixed) if (w.endsWith(f[0]) && (w.length() > f[0].length() || f[0].equals("있어라") || f[0].equals("해라")))
+            return replaceTail(s, f[0].length(), f[1], null);
+        if (n >= 3 && w.endsWith("니다")) {          // 갑니다 → 가ᄋᆞᆸᄂᆞ이다
+            Syl p = s.get(n - 3);
+            if (p.isHangul() && !p.locked && p.t == Jamo.T_B) return replaceTail(s, 2, HON_V, p);
+        }
+        if (n >= 2 && w.endsWith("예요")) return replaceTail(s, 2, "이" + HON_V, null);
+        if (n >= 2 && w.endsWith("해요")) { s.get(n - 2).v = Jamo.V_A; return replaceTail(s, 1, HON_V, null); }
+        if (n >= 3 && (w.endsWith("어요") || w.endsWith("아요"))) {
+            Syl p = s.get(n - 3);
+            if (p.isHangul() && p.t != 0) return replaceTail(s, 2, HON, null);   // 먹어요 → 먹ᄉᆞᆸᄂᆞ이다, 받았어요 → 바닷ᄉᆞᆸᄂᆞ이다
+            return replaceTail(s, 1, HON_V, null);
+        }
+        if (n >= 2 && w.endsWith("요")) {
+            Syl p = s.get(n - 2);
+            if (p.isHangul() && !p.locked && p.t == 0) return replaceTail(s, 1, HON_V, null);   // 가요 → 가ᄋᆞᆸᄂᆞ이다
+        }
+        if (w.equals("있다")) return replaceTail(s, 1, "노라", null);   // 잘 있다 → 잇노라
+        if (n >= 2) {
+            Syl p = s.get(n - 2), z = s.get(n - 1);
+            if (p.isHangul() && !p.locked && z.isHangul() && !z.locked) {
+                if (w.endsWith("네") && !BANMAL_EXCEPT.contains(w)) return replaceTail(s, 1, "{ㄴㆎ}", null);
+                if (w.endsWith("자") && !BANMAL_EXCEPT.contains(w)) return replaceTail(s, 1, "{ㅈㅑ}", null);
+                if ((w.endsWith("게") || w.endsWith("께")) && p.t == Jamo.T_R) { p.t = 0; return replaceTail(s, 1, "마", null); }
+            }
+        }
+        if (n >= 1 && w.endsWith("해") && !s.get(n - 1).locked) { s.get(n - 1).v = Jamo.V_A; return replaceTail(s, 0, "여", null); }
+        return s;
+    }
+
+    /** 편지체 다듬기: 모음 뒤 ᄉᆞᆸ → ᄋᆞᆸ (시브ᄋᆞᆸᄂᆞ이다), ᄒᆞ야 → ᄒᆞ여. */
+    private static void letterFix(List<Syl> s) {
+        for (int i = 1; i < s.size(); i++) {
+            Syl a = s.get(i - 1), b = s.get(i);
+            if (!a.isHangul() || !b.isHangul()) continue;
+            if (b.locked && b.l == Jamo.L_S && b.v == Jamo.V_ARAEA && b.t == Jamo.T_B && a.t == 0) b.l = Jamo.L_NULL;
+            if (a.l == Jamo.L_H && (a.v == Jamo.V_A || a.v == Jamo.V_ARAEA) && a.t == 0 && b.l == Jamo.L_NULL && b.v == Jamo.V_YA && b.t == 0) b.v = Jamo.V_YEO;
+        }
+    }
+
     /** 끝 k음절을 spec으로 바꾸고 잠금. stripT가 있으면 그 음절의 받침을 뗌. */
     private static int groupSeq = 0;
 
@@ -317,7 +399,7 @@ public final class Converter {
         while (i < s.size()) {
             Dict.Entry hit = null;
             int carryT = 0;
-            for (Dict.Entry e : Dict.ENTRIES) {
+            for (Dict.Entry e : o.letter ? LETTER_FIRST : Dict.ENTRIES) {
                 carryT = 0;
                 if (!m.startsWith(e.modern, i)) {
                     // VERB: 마지막 음절은 받침만 달라도 맞춤 (말한 → 말하 + ㄴ)
@@ -382,7 +464,7 @@ public final class Converter {
     /** -네/-자로 끝나도 이름씨인 낱말. */
     private static final Set<String> BANMAL_EXCEPT = new HashSet<>(Arrays.asList(
             "그네", "우리네", "너네", "저네", "아저씨네", "의자", "과자", "모자", "사자", "부자", "감자", "상자", "기자",
-            "왕자", "숫자", "액자", "판자", "왕자", "제자", "환자", "남자", "여자", "주자", "타자", "효자", "가자",
+            "왕자", "숫자", "액자", "판자", "왕자", "제자", "환자", "남자", "여자", "주자", "타자", "효자",
             "피자", "원자", "적자", "투자", "혼자", "이자", "단자", "탁자", "자자", "글자", "문자", "한자", "선자"));
 
     /** 사전으로 받침이 생긴 이름씨 + 다: 친구다 → 벋 + 이라 → 버디라. */
